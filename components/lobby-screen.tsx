@@ -134,6 +134,7 @@ export default function LobbyScreen({ setGamePhase, gameId, setGameId, gameState
       const playerAddress = userAddress
 
       await gameClient.createGame(playerAddress, newGameId)
+      gameClient.setGameId(newGameId)
       gameClient.setPlayerAddress(playerAddress)
 
       setTransactionStatus("Requesting MetaMask transaction approval...")
@@ -216,6 +217,7 @@ export default function LobbyScreen({ setGamePhase, gameId, setGameId, gameState
       console.log("[v0] Challenge accepted on-chain with tx:", txHash)
 
       await gameClient.joinGame(trimmedGameId, playerAddress)
+      gameClient.setGameId(trimmedGameId)
       gameClient.setPlayerAddress(playerAddress)
       setGameId(trimmedGameId)
       setGameState((prev: any) => ({
@@ -261,6 +263,8 @@ export default function LobbyScreen({ setGamePhase, gameId, setGameId, gameState
     try {
       setIsStartingGame(true)
       setTransactionStatus("Checking opponent connection...")
+
+      gameClient.setGameId(gameId)
 
       // Verify opponent has joined by checking game state
       const gameState = await gameClient.getGameState()

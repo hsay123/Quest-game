@@ -65,8 +65,18 @@ export default function GameContainer() {
     if (gamePhase === "building" || gamePhase === "hunting") {
       syncIntervalRef.current = setInterval(async () => {
         try {
+          if (gameId) {
+            gameClient.setGameId(gameId)
+          }
+
           const state = await gameClient.getGameState()
-          setOpponentConnected(state.opponentConnected)
+
+          if (state.error) {
+            console.warn("[v0] Game state error:", state.error)
+            return
+          }
+
+          setOpponentConnected(state.opponentConnected || false)
 
           // Update opponent grid
           if (state.opponentGrid) {
@@ -99,7 +109,7 @@ export default function GameContainer() {
         clearInterval(syncIntervalRef.current)
       }
     }
-  }, [gamePhase])
+  }, [gamePhase, gameId])
 
   const uploadGridChanges = async () => {
     if (!gameId) return
