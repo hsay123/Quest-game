@@ -138,11 +138,13 @@ export async function acceptChallengeOnChain(gameId: string, stakeAmount: string
     console.log("[v0] Accepting challenge on-chain with gameId:", gameId, "stake:", stakeAmount)
 
     try {
-      const challenge = await getChallengeDetails(gameId)
+      const challenge = await getChallengeDetailsWithRetry(gameId)
       console.log("[v0] Game found on-chain:", challenge)
     } catch (error) {
-      console.error("[v0] Game not found on-chain before accepting:", gameId)
-      throw new Error(`Game "${gameId}" does not exist on-chain. Make sure the creator has confirmed the transaction.`)
+      console.error("[v0] Game not found on-chain after retries:", gameId)
+      throw new Error(
+        `Game "${gameId}" does not exist on-chain. Make sure the creator has confirmed the transaction. If this persists, wait a moment and try again.`,
+      )
     }
 
     const tx = await contract.acceptChallenge(gameId, {
@@ -231,4 +233,27 @@ export async function getPlayerBalance(playerAddress: string) {
     console.error("[v0] Error fetching player balance:", error)
     throw error
   }
+}
+
+async function getChallengeDetailsWithRetry(gameId: string, maxRetries = 5): Promise<any> {
+  let lastError: any
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[v0] Verifying game on-chain (attempt ${attempt}/${maxRetries})...`)
+      const challenge = await getChallengeDetails(gameId)
+      console.log("[v0] Game found on-chain:", challenge)
+      return challenge
+    } catch (error) {
+      lastError = error
+      if (attempt < maxRetries) {
+        // Exponential backoff: 1s, 2s, 4s, 8s, 16s
+        const delayMs = Math.pow(2, attempt - 1) * 1000
+        console.warn(`[v0] Game not found yet, retrying in ${delayMs}ms...`)
+        await new Promise((resolve) => setTimeout(resolve, delayMs))
+      }
+    }
+  }
+
+  throw lastError
 }
