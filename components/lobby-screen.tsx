@@ -7,8 +7,9 @@ import { useState, useEffect } from "react"
 import { switchToMonad } from "@/lib/monad-config"
 import { gameClient } from "@/lib/game-client"
 import { generateGameId } from "@/lib/game-id-generator"
-import { createChallengeOnChain, acceptChallengeOnChain } from "@/lib/contract-interaction"
+import { createChallengeOnChain, acceptChallengeOnChain, getChallengeDetails } from "@/lib/contract-interaction"
 import { getBalance } from "@/lib/web3-utils"
+import { ethers } from "ethers"
 
 interface LobbyScreenProps {
   setGamePhase: (phase: string) => void
@@ -196,12 +197,16 @@ export default function LobbyScreen({ setGamePhase, gameId, setGameId, gameState
 
     try {
       setIsJoining(true)
-      setTransactionStatus("Joining game and accepting challenge on-chain...")
+      setTransactionStatus("Fetching challenge details...")
+
+      const challengeDetails = await getChallengeDetails(trimmedGameId)
+      const creatorStake = ethers.formatEther(challengeDetails.stake)
+      console.log("[v0] Creator's stake:", creatorStake, "MON")
 
       const playerAddress = userAddress
 
       setTransactionStatus("Requesting MetaMask transaction approval...")
-      const txHash = await acceptChallengeOnChain(trimmedGameId, stake)
+      const txHash = await acceptChallengeOnChain(trimmedGameId, creatorStake)
 
       if (!txHash) {
         throw new Error("Transaction failed - no hash returned")
@@ -236,6 +241,8 @@ export default function LobbyScreen({ setGamePhase, gameId, setGameId, gameState
         alert("You are not the opponent for this challenge. Check the game ID.")
       } else if (error.message?.includes("Game not found")) {
         alert("Game not found. Please check the game ID and try again.")
+      } else if (error.message?.includes("Stake must match")) {
+        alert("Stake amount must match the creator's stake. Please try again.")
       } else {
         alert("Failed to join game: " + error.message)
       }
